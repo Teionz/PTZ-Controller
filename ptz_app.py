@@ -745,6 +745,12 @@ class Janela(QtWidgets.QMainWindow):
         self.video_lbl.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.video_lbl.setFocus()
         self._montar_atalhos()
+        # WASD/Q/E/Espaço/N/C também funcionam na 2ª tela: keyPressEvent só
+        # dispara na janela que tem o foco, e a 2ª tela é uma QMainWindow
+        # separada — sem isto, o teclado só mexia a câmera com a tela
+        # principal em primeiro plano. Filtro de aplicação inteiro (não só
+        # a 2ª tela) para pegar também os painéis quando movidos pra lá.
+        QtWidgets.QApplication.instance().installEventFilter(self)
 
     def _montar_atalhos(self):
         # Ctrl + 1..9 chama os presets — atalho de APLICAÇÃO (funciona em qualquer
@@ -1709,6 +1715,22 @@ class Janela(QtWidgets.QMainWindow):
         if ev.isAutoRepeat():
             return
         self.teclas.discard(ev.key())
+
+    def eventFilter(self, obj, ev):
+        # Reaproveita keyPressEvent/keyReleaseEvent (janela principal) para
+        # teclas que chegam na 2ª TELA (self.win_ctrl é uma janela separada,
+        # então o teclado nem chegava a ela). Não intercepta se o widget com
+        # foco for um campo de TEXTO (deixa digitar normalmente, ex.: nome
+        # de preset) — igual ao que já acontece na janela principal.
+        t = ev.type()
+        if t in (QtCore.QEvent.KeyPress, QtCore.QEvent.KeyRelease):
+            if (isinstance(obj, QtWidgets.QWidget) and obj.window() is self.win_ctrl
+                    and not isinstance(obj, (QtWidgets.QLineEdit, QtWidgets.QTextEdit))):
+                if t == QtCore.QEvent.KeyPress:
+                    self.keyPressEvent(ev)
+                else:
+                    self.keyReleaseEvent(ev)
+        return False
 
     def _mov_teclado(self):
         pan = tilt = zoom = 0
