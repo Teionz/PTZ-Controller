@@ -49,12 +49,13 @@ SHUTTER_STR = {
     0x0F: "1/4000", 0x10: "1/6000", 0x11: "1/10000",
 }
 SHUTTER_MIN, SHUTTER_MAX = min(SHUTTER_STR), max(SHUTTER_STR)
-# Íris: posição 1 = mais ABERTA (F1.8), sobe conforme vai FECHANDO, até F11 e
-# depois "Fechada" (conferido contra o painel real da câmera 2026-08-23).
+# Íris: posição 1 = FECHADA (escuro), sobe conforme vai ABRINDO, até posição 13
+# = F1.8 (mais aberta/clara). Bate com iris_mais() somando à posição (abre).
+# Corrigido 2026-08-23: estava invertido (usuário confirmou testando na câmera).
 IRIS_STR = {
-    0x01: "F1.8", 0x02: "F2.0", 0x03: "F2.4", 0x04: "F2.8", 0x05: "F3.4",
-    0x06: "F4.0", 0x07: "F4.8", 0x08: "F5.6", 0x09: "F6.8", 0x0A: "F8.0",
-    0x0B: "F9.6", 0x0C: "F11", 0x0D: "Fechada",
+    0x01: "Fechada", 0x02: "F11", 0x03: "F9.6", 0x04: "F8.0", 0x05: "F6.8",
+    0x06: "F5.6", 0x07: "F4.8", 0x08: "F4.0", 0x09: "F3.4", 0x0A: "F2.8",
+    0x0B: "F2.4", 0x0C: "F2.0", 0x0D: "F1.8",
 }
 IRIS_MIN, IRIS_MAX = min(IRIS_STR), max(IRIS_STR)
 
