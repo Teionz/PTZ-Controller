@@ -40,18 +40,23 @@ ESTADO_JSON = os.path.join(pasta_dados(), "estado.json")
 # como no app da PTZOptics. Se algum valor não bater com o que a câmera mostra,
 # é só ajustar aqui — o número da posição (pos N) sempre aparece do lado.
 # Tabela oficial Sony/PTZOptics (60Hz). Íris no painel do usuário: F5.0/F2.2.
+# CONFERIDO contra o painel real da câmera (2026-08-23): a posição 1 é o 1º valor
+# da lista e sobe dali — NÃO existe posição 0.
 SHUTTER_STR = {
-    0x00: "1/1", 0x01: "1/2", 0x02: "1/4", 0x03: "1/8", 0x04: "1/15",
-    0x05: "1/30", 0x06: "1/60", 0x07: "1/90", 0x08: "1/100", 0x09: "1/125",
-    0x0A: "1/180", 0x0B: "1/250", 0x0C: "1/350", 0x0D: "1/500", 0x0E: "1/725",
-    0x0F: "1/1000", 0x10: "1/1500", 0x11: "1/2000", 0x12: "1/3000",
-    0x13: "1/4000", 0x14: "1/6000", 0x15: "1/10000",
+    0x01: "1/30", 0x02: "1/60", 0x03: "1/90", 0x04: "1/100", 0x05: "1/125",
+    0x06: "1/180", 0x07: "1/250", 0x08: "1/350", 0x09: "1/500", 0x0A: "1/725",
+    0x0B: "1/1000", 0x0C: "1/1500", 0x0D: "1/2000", 0x0E: "1/3000",
+    0x0F: "1/4000", 0x10: "1/6000", 0x11: "1/10000",
 }
+SHUTTER_MIN, SHUTTER_MAX = min(SHUTTER_STR), max(SHUTTER_STR)
+# Íris: posição 1 = mais ABERTA (F1.8), sobe conforme vai FECHANDO, até F11 e
+# depois "Fechada" (conferido contra o painel real da câmera 2026-08-23).
 IRIS_STR = {
-    0x00: "Fechada", 0x05: "F14", 0x06: "F11", 0x07: "F9.6", 0x08: "F8.0",
-    0x09: "F6.8", 0x0A: "F5.6", 0x0B: "F5.0", 0x0C: "F4.0", 0x0D: "F3.4",
-    0x0E: "F2.8", 0x0F: "F2.2", 0x10: "F2.0", 0x11: "F1.8",
+    0x01: "F1.8", 0x02: "F2.0", 0x03: "F2.4", 0x04: "F2.8", 0x05: "F3.4",
+    0x06: "F4.0", 0x07: "F4.8", 0x08: "F5.6", 0x09: "F6.8", 0x0A: "F8.0",
+    0x0B: "F9.6", 0x0C: "F11", 0x0D: "Fechada",
 }
+IRIS_MIN, IRIS_MAX = min(IRIS_STR), max(IRIS_STR)
 
 
 def _rotulo_valor(tabela, pos):
@@ -1158,7 +1163,7 @@ class Janela(QtWidgets.QMainWindow):
         if iris is not None:
             self.ultimo_iris_pos = iris
         elif self.ultimo_iris_pos is not None:
-            self.ultimo_iris_pos = max(0, min(20, self.ultimo_iris_pos + direcao))
+            self.ultimo_iris_pos = max(IRIS_MIN, min(IRIS_MAX, self.ultimo_iris_pos + direcao))
         self.lbl_iris.setText(_rotulo_valor(IRIS_STR, self.ultimo_iris_pos)
                               if self.ultimo_iris_pos is not None else "—")
 
@@ -1173,7 +1178,7 @@ class Janela(QtWidgets.QMainWindow):
         if shut is not None:
             self.ultimo_shutter_pos = shut
         elif self.ultimo_shutter_pos is not None:
-            self.ultimo_shutter_pos = max(0, min(21, self.ultimo_shutter_pos + direcao))
+            self.ultimo_shutter_pos = max(SHUTTER_MIN, min(SHUTTER_MAX, self.ultimo_shutter_pos + direcao))
         self.lbl_shutter.setText(_rotulo_valor(SHUTTER_STR, self.ultimo_shutter_pos)
                                  if self.ultimo_shutter_pos is not None else "—")
 
