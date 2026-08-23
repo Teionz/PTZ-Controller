@@ -81,10 +81,17 @@ def caminho_config():
 
 
 def caminho_modelo(nome):
-    """Se o modelo (.pt) veio junto com o programa, usa o caminho absoluto dele;
-    senão, deixa o nome puro (a IA baixa/usa o cache na 1a vez)."""
+    """Se o modelo (.pt) veio junto com o programa, usa o caminho absoluto dele.
+    Senão, aponta para a pasta GRAVÁVEL de dados (nunca a pasta do código/nome
+    puro) — instalado em "Arquivos de Programas" é somente-leitura, e se o app
+    tentasse baixar/salvar o modelo ali o download falharia sem aviso claro
+    (era exatamente o bug: modelo não veio junto -> tentava baixar em pasta
+    sem permissão -> IA nunca subia). Assim, se faltar o modelo bundled, a IA
+    ainda consegue baixar (com internet) e salvar num lugar que ela pode escrever."""
     junto = os.path.join(pasta_recursos(), os.path.basename(nome))
-    return junto if os.path.exists(junto) else nome
+    if os.path.exists(junto):
+        return junto
+    return os.path.join(pasta_dados(), os.path.basename(nome))
 
 
 # ----------------------------------------------------------------------------

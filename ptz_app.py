@@ -120,6 +120,7 @@ class Detector(QtCore.QThread):
         self.conf = conf
         self.rodando = True
         self.ativo = True
+        self._erro_frame_logado = False
 
     def _log_erro(self, titulo, e):
         """Grava o erro completo da IA num arquivo, pra dar pra diagnosticar quando
@@ -166,7 +167,12 @@ class Detector(QtCore.QThread):
                                    tracker="bytetrack.yaml", verbose=False,
                                    imgsz=self.det_w, conf=self.conf)
             except Exception as e:
-                self.aviso.emit("Erro na IA: %s" % e)
+                # loga só a 1a vez (senão escreveria no disco a cada quadro, ~30x/s)
+                if not self._erro_frame_logado:
+                    self._erro_frame_logado = True
+                    self.aviso.emit(self._log_erro("Erro na IA durante a detecção", e))
+                else:
+                    self.aviso.emit("Erro na IA: %s" % e)
                 self.msleep(100)
                 continue
 
