@@ -10,8 +10,7 @@ raiz = os.path.abspath(os.getcwd())
 # Bibliotecas pesadas que precisam levar TODOS os arquivos internos junto,
 # senão o .exe abre e quebra por falta de dados/plugins.
 datas, binaries, hiddenimports = [], [], []
-for pacote in ("ultralytics", "torch", "torchvision", "cv2", "pygame",
-               "matplotlib", "pandas", "scipy"):
+for pacote in ("ultralytics", "torch", "torchvision", "cv2", "pygame", "matplotlib"):
     try:
         d, b, h = collect_all(pacote)
         datas += d; binaries += b; hiddenimports += h
@@ -22,9 +21,11 @@ hiddenimports += collect_submodules("ultralytics")
 # MUITO IMPORTANTE: o ultralytics (IA) lê em tempo de execução os METADADOS destes
 # pacotes (versão instalada). O PyInstaller não inclui isso por padrão, e sem eles a
 # IA quebra ("Falha ao carregar o modelo") mesmo com o resto do app funcionando.
+# Lista conferida contra as dependências REAIS do ultralytics (pip show ultralytics).
 for meta in ("ultralytics", "torch", "torchvision", "numpy", "opencv-python",
              "pyyaml", "tqdm", "psutil", "py-cpuinfo", "requests", "pillow",
-             "matplotlib", "pandas", "scipy", "ultralytics-thop"):
+             "matplotlib", "pandas", "scipy", "ultralytics-thop",
+             "filelock", "polars", "nvidia-ml-py"):
     try:
         datas += copy_metadata(meta)
     except Exception:

@@ -23,3 +23,7 @@ erro_ia.txt
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# --- Regras internas de trabalho (não é parte do app, não sobe pro GitHub) ---
+regras.md
+REGRAS*.md
