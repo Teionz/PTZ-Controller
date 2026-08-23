@@ -566,6 +566,10 @@ class Janela(QtWidgets.QMainWindow):
         self.margem = self.cfg.getfloat("rastreamento", "margem_seguranca", fallback=0.22)
         self.margem_vert = self.cfg.getfloat("rastreamento", "margem_vertical", fallback=0.32)
         self.parar_em = self.cfg.getfloat("rastreamento", "parar_em", fallback=0.05)
+        # FIRMEZA VERTICAL: ignora de vez pequenos tremores de cima/baixo (respirar,
+        # balançar a cabeça ao falar) antes mesmo de decidir se corrige — não é só
+        # "não iniciar o movimento", é nem CONSIDERAR o tremor pequeno como alvo novo.
+        self.firmeza_vert = self.cfg.getfloat("rastreamento", "firmeza_vertical", fallback=0.03)
         self.suav = self.cfg.getfloat("rastreamento", "suavizacao", fallback=0.15)
         self.acel = self.cfg.getfloat("rastreamento", "aceleracao", fallback=1.0)
         self.modelo_nome = self.cfg.get("rastreamento", "modelo", fallback="yolov8n.pt")
@@ -623,7 +627,8 @@ class Janela(QtWidgets.QMainWindow):
         # aplica ajustes de rastreamento SALVOS (por cima dos padrões do config.ini)
         r = self.estado.get("rastreamento", {})
         for attr in ("escala_mult", "tela_x", "tela_y", "margem", "margem_vert", "suav",
-                     "antecipar_ganho", "seguir_vel", "vman_pan", "vman_tilt", "vman_zoom"):
+                     "firmeza_vert", "antecipar_ganho", "seguir_vel",
+                     "vman_pan", "vman_tilt", "vman_zoom"):
             if attr in r:
                 setattr(self, attr, r[attr])
         if "zoom_auto" in r:
@@ -999,6 +1004,13 @@ class Janela(QtWidgets.QMainWindow):
         self.sld_mvert = self._slider(8, 60, int(self.margem_vert * 100),
                                       lambda x: self._set_rastr("margem_vert", x / 100.0))
         v.addWidget(self.sld_mvert)
+        v.addWidget(QtWidgets.QLabel("Firmeza vertical (maior = ignora mais tremor de cima/baixo)"))
+        self.sld_firmeza = self._slider(1, 12, int(self.firmeza_vert * 100),
+                                        lambda x: self._set_rastr("firmeza_vert", x / 100.0))
+        self.sld_firmeza.setToolTip("Ignora pequenos tremores verticais (respirar, balançar a "
+                                    "cabeça ao falar) antes mesmo de considerar corrigir. Se "
+                                    "ainda estiver corrigindo por pouca coisa, aumente aqui.")
+        v.addWidget(self.sld_firmeza)
         return g
 
     def _grupo_movimento(self):
@@ -1404,6 +1416,7 @@ class Janela(QtWidgets.QMainWindow):
             "tela_y": self.tela_y,
             "margem": self.margem,
             "margem_vert": self.margem_vert,
+            "firmeza_vert": self.firmeza_vert,
             "suav": self.suav,
             "antecipar": self.antecipar,
             "antecipar_ganho": self.antecipar_ganho,
@@ -1875,7 +1888,14 @@ class Janela(QtWidgets.QMainWindow):
             # piso de responsividade: mesmo com "Suavidade" alta, não arrasta demais.
             fx = min(1.0, self.suav * 2.0 + 0.25)
             self.sx += fx * (tx - self.sx)
-            self.sy += (fx * 0.7) * (ty - self.sy)
+            # FIRMEZA VERTICAL: um tremor pequeno de cima/baixo (respirar, balançar
+            # a cabeça ao falar) nem chega a mexer no alvo interno — só desloca de
+            # verdade quando o movimento vertical é maior que este limiar. Isso evita
+            # ficar "corrigindo por pouca coisa" antes mesmo de qualquer margem/zona.
+            limiar_y = self.firmeza_vert * self.H
+            dy = ty - self.sy
+            if abs(dy) > limiar_y:
+                self.sy += (fx * 0.7) * dy
 
         # 1b) ANTECIPAÇÃO: quando o alvo se move para um lado, mira um pouco À FRENTE
         #     dele (na direção do movimento), fazendo a câmera "chumbar" e continuar
