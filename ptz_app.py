@@ -595,6 +595,7 @@ class Janela(QtWidgets.QMainWindow):
         self.alvo_id = None          # só para desenhar (não confiamos nele p/ seguir)
         self.alvo_box = None         # caixa rastreada do alvo (x1,y1,x2,y2)
         self.alvo_aim = None         # ponto de mira do alvo (ombros/cabeça)
+        self.aim_confiavel = False   # False = mira em modo "reserva" (pose perdida)
         self.alvo_vel = (0.0, 0.0)   # velocidade do centro (previsão)
         self.pausado = False
         self.ultimo_visto = 0.0
@@ -1836,6 +1837,7 @@ class Janela(QtWidgets.QMainWindow):
         self.vp = 0.0
         self.vt = 0.0
         self.alvo_aim = None
+        self.aim_confiavel = False
         self.sh = None
         self._zoom_ativo = False
 
@@ -1878,17 +1880,29 @@ class Janela(QtWidgets.QMainWindow):
             self.alvo_box = (lx1 + a * (x1 - lx1), ly1 + a * (y1 - ly1),
                              lx2 + a * (x2 - lx2), ly2 + a * (y2 - ly2))
             self.alvo_id = _id
-            # ponto de mira da pose (ombros/cabeça). Só atualiza se a pose estiver
-            # CONFIÁVEL; senão SEGURA no lugar (não segue as mãos/caixa quando
-            # levanta os braços e o rosto fica com baixa confiança).
+            # ponto de mira da pose (ombros/cabeça). Só atualiza em X se a pose
+            # estiver CONFIÁVEL (não segue as mãos quando levanta os braços).
             am = self._aims.get(_id)
             if am is not None:
                 ax_, ay_, ok = am
+                self.aim_confiavel = ok
                 if self.alvo_aim is None:
                     self.alvo_aim = (float(ax_), float(ay_))
                 elif ok:
                     self.alvo_aim = (0.35 * self.alvo_aim[0] + 0.65 * ax_,
                                      0.35 * self.alvo_aim[1] + 0.65 * ay_)
+                else:
+                    # pose momentaneamente não confiável (cabeça muito baixa/de
+                    # lado, movimento rápido). Antes o Y ficava TRAVADO até a
+                    # pose voltar — se o ministro abaixasse/levantasse rápido, a
+                    # câmera perdia o rosto e cortava a cabeça. Agora, em Y (só
+                    # Y — X continua travado, não segue mãos), acompanha de leve
+                    # o TOPO da caixa (existe mesmo sem pose, é bem mais estável
+                    # que os keypoints em movimento rápido) até a pose voltar.
+                    alt_c = max(1.0, y2 - y1)
+                    ay_reserva = y1 + alt_c * 0.12
+                    self.alvo_aim = (self.alvo_aim[0],
+                                     0.8 * self.alvo_aim[1] + 0.2 * ay_reserva)
             self.ultimo_visto = time.time()
             return self.alvo_box, True
 
@@ -2051,6 +2065,21 @@ class Janela(QtWidgets.QMainWindow):
         cv2.rectangle(frame, (mx - ox, my - oy), (mx + ox, my + oy), (0, 220, 0), 2)
         cv2.putText(frame, "zona do pastor", (mx - ox, max(15, my - oy - 8)),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 220, 0), 1, cv2.LINE_AA)
+
+        # 5) RASTREIO DO ROSTO/POSE: mostra exatamente o ponto que a IA está
+        #    usando pra mirar (ombros em X, cabeça em Y) — ajuda a ver na hora
+        #    quando ele pega muito alto/muito baixo. Ciano = pose confiável
+        #    (rosto/ombros detectados); laranja = "modo reserva" (pose sumiu
+        #    por um instante — cabeça muito baixa/rápida — seguindo pelo topo
+        #    da caixa até a pose voltar).
+        if self.alvo_aim is not None:
+            ax, ay = int(self.alvo_aim[0]), int(self.alvo_aim[1])
+            cor_aim = (255, 220, 0) if self.aim_confiavel else (0, 165, 255)
+            cv2.circle(frame, (ax, ay), 9, cor_aim, 2)
+            cv2.drawMarker(frame, (ax, ay), cor_aim, cv2.MARKER_TILTED_CROSS, 14, 2)
+            cv2.putText(frame, "rosto" if self.aim_confiavel else "rosto (reserva)",
+                        (ax + 14, ay + 5), cv2.FONT_HERSHEY_SIMPLEX, 0.45, cor_aim, 1,
+                        cv2.LINE_AA)
 
         # outras pessoas em cinza
         for c in self.caixas:
